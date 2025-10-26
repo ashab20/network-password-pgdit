@@ -10,6 +10,10 @@
 - MAC & Linux
 ```source env/bin/activate```
 
-### Active The Environment ###
+### Deactive The Environment ###
 - Windows, MAC & Linux
 ```deactivate```
+
+### Install Dependancy ###
+```pip install tk```
+```pip install ttkbootstrap```
