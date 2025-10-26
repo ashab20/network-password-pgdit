@@ -20,14 +20,19 @@
 # pip install tkinter
 # pip install ttkbootstrap
 
-
-
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
 import tkinter as tk
+import hashlib
+import time
 
+# -------------------- Auth Layer -------------------- #
 class AuthServices:
+    users = {
+        "admin@pgdit.com": hashlib.sha256("@dminPGDIT123".encode()).hexdigest()
+    }
+
     def checkPasswordSecurity(self, password):
         if len(password) < 8:
             return False
@@ -39,20 +44,47 @@ class AuthServices:
             return False
         return True
 
+    def verify_user(self, email, password):
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        stored_hash = self.users.get(email)
+        return stored_hash == hashed
+
 
 class AuthController:
     def __init__(self):
         self.authService = AuthServices()
+        self.failed_attempts = {}
+        self.lockout_time = {}   
 
     def login(self, email, password):
+        # Check if user is locked out
+        if email in self.lockout_time:
+            if time.time() < self.lockout_time[email]:
+                wait_seconds = int(self.lockout_time[email] - time.time())
+                return f"⚠️ Too many attempts. Try again in {wait_seconds} seconds."
+            else:
+                # Unlock after wait
+                self.failed_attempts[email] = 0
+                del self.lockout_time[email]
+
         if not email or not password:
             return "Please enter both email and password."
 
-        checkPassword = self.authService.checkPasswordSecurity(password)
-        if not checkPassword:
+        if not self.authService.checkPasswordSecurity(password):
             return "❌ Password is not secure.\nUse uppercase, number, and min 8 chars."
-        else:
+
+        if self.authService.verify_user(email, password):
+            self.failed_attempts[email] = 0
             return f"✅ Welcome, {email}!\nPassword is secure."
+        else:
+            # Increment failed attempts
+            self.failed_attempts[email] = self.failed_attempts.get(email, 0) + 1
+            if self.failed_attempts[email] >= 3:
+                self.lockout_time[email] = time.time() + 60 
+                return "⚠️ Too many attempts. Please wait 1 minute."
+            else:
+                attempts_left = 3 - self.failed_attempts[email]
+                return f"❌ Invalid credentials. {attempts_left} attempt(s) left."
 
 
 class LoginView:
@@ -67,12 +99,10 @@ class LoginView:
         root.geometry("600x600")
         root.resizable(False, False)
 
-        # Gradient background
         canvas = tk.Canvas(root, width=600, height=600, highlightthickness=0)
         canvas.place(x=0, y=0)
         self.draw_gradient(canvas, "#6a11cb", "#2575fc")
 
-        # Login frame
         frame = ttk.Frame(root, padding=50, bootstyle="light")
         frame.place(relx=0.5, rely=0.5, anchor="center")
 
